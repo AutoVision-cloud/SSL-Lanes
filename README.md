@@ -16,6 +16,7 @@ Place it in `SSL-Lanes/dataset/preprocess`.
 Download the checkpoint from the link given in *testing* section. Place it in `SSL-Lanes/LaneGCN/results/lanegcn/ckpt`.
 
 ## Which links to change?
+Change the `root_dir`, `weight` and `sys-dir` links to your local links.
 
 ## What is the purpose of the game-theoretic interface notebook?
 Motivation: Use a game-theoretic planner to check feasibility/lack of other possible trajectories.
