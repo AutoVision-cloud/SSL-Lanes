@@ -11,7 +11,7 @@ Install argoverse package and its dependencies from https://github.com/argoai/ar
 Install dependencies for Lane-GCN from https://github.com/uber-research/LaneGCN.
 
 Check the scripts, and download the processed Lane-GCN data instead of running it for hours.
-Place it in `SSL-Lanes/dataset/preprocess`.
+Place it in `SSL-Lanes/LaneGCN/dataset/preprocess`.
 
 Download the checkpoint from the link given in *testing* section. Place it in `SSL-Lanes/LaneGCN/results/lanegcn/ckpt`.
 
