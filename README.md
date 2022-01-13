@@ -3,7 +3,7 @@
 ## How to download the data and where to place it?
 Download the motion forecasting data from https://www.argoverse.org/data.html.
 
-Place it in `SSL-Lanes/dataset/train` and `SSL-Lanes/dataset/val`.
+Place it in `SSL-Lanes/LaneGCN/dataset/train` and `SSL-Lanes/LaneGCN/dataset/val`.
 
 ## How to setup Argoverse-api and Lane-GCN?
 Install argoverse package and its dependencies from https://github.com/argoai/argoverse-api.
