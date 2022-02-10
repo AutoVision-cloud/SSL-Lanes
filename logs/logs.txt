@@ -111,7 +111,7 @@ Margin: 0.2
 Num_scales: 6
 Epochs: 36 (checkpoint: 36.pth)
 Time for execution (V100):  175 secs
-Training time: 4 V-100 GPU, 8.2hrs
+Training time: 4 Tesla V-100 GPUs, 8.2hrs
 Modules: A2L, L2L, L2A, A2A
 
 
