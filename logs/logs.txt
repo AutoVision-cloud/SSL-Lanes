@@ -20,7 +20,28 @@ Prediction Horizon : 30, Max #guesses (K): 1
 ------------------------------------------------
 
 
-Baseline 2:
+﻿Baseline 2:
+
+Blocks: 2
+Margin: 0.8
+Num_scales: 1
+Epochs: 36
+Time for execution (V100): 129 secs
+Modules: Only L2A and A2A
+
+------------------------------------------------
+Prediction Horizon : 30, Max #guesses (K): 6
+------------------------------------------------
+{'minADE': 0.7303946729974385, 'minFDE': 1.1536207664718297, 'MR': 0.11785569517632752, 'DAC': 0.9863700851236304}
+------------------------------------------------
+------------------------------------------------
+Prediction Horizon : 30, Max #guesses (K): 1
+------------------------------------------------
+{'minADE': 1.3199582456078107, 'minFDE': 2.8987330732881356, 'MR': 0.48036582894203483, 'DAC': 0.9899929063640048}
+------------------------------------------------
+
+
+﻿Baseline 3:
 
 Blocks: 2
 Margin: 0.2
@@ -41,7 +62,7 @@ Prediction Horizon : 30, Max #guesses (K): 1
 ------------------------------------------------
 
 
-Baseline 3:
+﻿Baseline 4:
 
 Blocks: 4
 Margin: 0.2
@@ -62,7 +83,7 @@ Prediction Horizon : 30, Max #guesses (K): 1
 ------------------------------------------------
 
 
-Baseline 4:
+﻿Baseline 5:
 
 Blocks: 4
 Margin: 0.2
@@ -83,7 +104,7 @@ Prediction Horizon : 30, Max #guesses (K): 1
 ------------------------------------------------
 
 
-Baseline 5:
+﻿Baseline 6:
 
 Blocks: 4
 Margin: 0.2
@@ -104,7 +125,7 @@ Prediction Horizon : 30, Max #guesses (K): 1
 ------------------------------------------------
 
 
-Baseline 6 (Original):
+﻿Baseline 7 (Original):
 
 Blocks: 4
 Margin: 0.2
