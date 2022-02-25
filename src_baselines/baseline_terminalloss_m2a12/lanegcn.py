@@ -29,13 +29,13 @@ config = dict()
 """Train"""
 config["display_iters"] = 205942
 config["val_iters"] = 205942 * 2
-config["save_freq"] = 1.0
+config["save_freq"] = 2 #1.0
 config["epoch"] = 0
-config["horovod"] = False # True
+config["horovod"] = True
 config["opt"] = "adam"
-config["num_epochs"] = 36
+config["num_epochs"] = 60 #36
 config["lr"] = [1e-3, 1e-4]
-config["lr_epochs"] = [32]
+config["lr_epochs"] = [45] #[32] 
 config["lr_func"] = StepLR(config["lr"], config["lr_epochs"])
 
 
@@ -47,32 +47,38 @@ if "save_dir" not in config:
 if not os.path.isabs(config["save_dir"]):
     config["save_dir"] = os.path.join(root_path, "results", config["save_dir"])
 
-config["batch_size"] = 1 #32
-config["val_batch_size"] = 1 #32
+config["batch_size"] = 32
+config["val_batch_size"] = 32
 config["workers"] = 0
 config["val_workers"] = config["workers"]
 
 
 """Dataset"""
 # Raw Dataset
-config["train_split"] = os.path.join(root_path, "dataset/forecasting_sample/data") #"dataset/train/data")
-config["val_split"] = os.path.join(root_path, 'dataset/forecasting_sample/data') #"dataset/val/data")
+config["train_split"] = os.path.join(
+    root_path, "dataset/train/data"
+)
+config["val_split"] = os.path.join(root_path, "dataset/val/data")
 config["test_split"] = os.path.join(root_path, "dataset/test_obs/data")
 
 # Preprocessed Dataset
-config["preprocess"] = False # True # whether use preprocess or not
-config["preprocess_train"] = os.path.join(root_path, "dataset","preprocess", "train_crs_dist6_angle90.p")
-config["preprocess_val"] = os.path.join(root_path,"dataset", "preprocess", "val_crs_dist6_angle90.p")
+config["preprocess"] = True # whether use preprocess or not
+config["preprocess_train"] = os.path.join(
+    root_path, "dataset","preprocess", "train_crs_dist6_angle90.p"
+)
+config["preprocess_val"] = os.path.join(
+    root_path,"dataset", "preprocess", "val_crs_dist6_angle90.p"
+)
 config['preprocess_test'] = os.path.join(root_path, "dataset",'preprocess', 'test_test.p')
 
 """Model"""
 config["rot_aug"] = False
 config["pred_range"] = [-100.0, 100.0, -100.0, 100.0]
-config["num_scales"] = 6
+config["num_scales"] = 1 # 6
 config["n_actor"] = 128
 config["n_map"] = 128
 config["actor2map_dist"] = 7.0
-config["map2actor_dist"] = 6.0
+config["map2actor_dist"] = 12.0 #6.0
 config["actor2actor_dist"] = 100.0
 config["pred_size"] = 30
 config["pred_step"] = 1
@@ -80,7 +86,7 @@ config["num_preds"] = config["pred_size"] // config["pred_step"]
 config["num_mods"] = 6
 config["cls_coef"] = 1.0
 config["reg_coef"] = 1.0
-config["goal_coef"] = 0.5
+config["goal_coef"] = 1.0
 config["mgn"] = 0.2
 config["cls_th"] = 2.0
 config["cls_ignore"] = 0.2
@@ -192,15 +198,15 @@ def graph_gather(graphs):
                     [graphs[j][k1][i][k2] + counts[j] for j in range(batch_size)], 0
                 )
 
-    #for k1 in ["left", "right"]:
-    #    graph[k1] = dict()
-    #    for k2 in ["u", "v"]:
-    #        temp = [graphs[i][k1][k2] + counts[i] for i in range(batch_size)]
-    #        temp = [
-    #            x if x.dim() > 0 else graph["pre"][0]["u"].new().resize_(0)
-    #            for x in temp
-    #        ]
-    #        graph[k1][k2] = torch.cat(temp)
+    for k1 in ["left", "right"]:
+        graph[k1] = dict()
+        for k2 in ["u", "v"]:
+            temp = [graphs[i][k1][k2] + counts[i] for i in range(batch_size)]
+            temp = [
+                x if x.dim() > 0 else graph["pre"][0]["u"].new().resize_(0)
+                for x in temp
+            ]
+            graph[k1][k2] = torch.cat(temp)
     return graph
 
 
@@ -289,7 +295,7 @@ class MapNet(nn.Module):
         for key in keys:
             fuse[key] = []
 
-        for i in range(4):
+        for i in range(2): #4):
             for key in fuse:
                 if key in ["norm"]:
                     fuse[key].append(nn.GroupNorm(gcd(ng, n_map), n_map))
@@ -335,18 +341,18 @@ class MapNet(nn.Module):
                         self.fuse[key][i](feat[graph[k1][k2]["v"]]),
                     )
 
-            # if len(graph["left"]["u"] > 0):
-            #     temp.index_add_(
-            #         0,
-            #         graph["left"]["u"],
-            #         self.fuse["left"][i](feat[graph["left"]["v"]]),
-            #     )
-            # if len(graph["right"]["u"] > 0):
-            #     temp.index_add_(
-            #         0,
-            #         graph["right"]["u"],
-            #         self.fuse["right"][i](feat[graph["right"]["v"]]),
-            #     )
+            if len(graph["left"]["u"] > 0):
+                temp.index_add_(
+                    0,
+                    graph["left"]["u"],
+                    self.fuse["left"][i](feat[graph["left"]["v"]]),
+                )
+            if len(graph["right"]["u"] > 0):
+                temp.index_add_(
+                    0,
+                    graph["right"]["u"],
+                    self.fuse["right"][i](feat[graph["right"]["v"]]),
+                )
 
             feat = self.fuse["norm"][i](temp)
             feat = self.relu(feat)
@@ -737,7 +743,7 @@ class PredLoss(nn.Module):
         super(PredLoss, self).__init__()
         self.config = config
         self.reg_loss = nn.SmoothL1Loss(reduction="sum")
-        self.goal_loss = nn.MSELoss(reduction='sum')
+        self.goal_loss = nn.SmoothL1Loss(reduction='sum')
 
     def forward(self, out: Dict[str, List[Tensor]], gt_preds: List[Tensor], has_preds: List[Tensor]) -> Dict[str, Union[Tensor, int]]:
         cls, reg = out["cls"], out["reg"]
@@ -748,7 +754,6 @@ class PredLoss(nn.Module):
 
         loss_out = dict()
         zero = 0.0 * (cls.sum() + reg.sum())
-
         loss_out["cls_loss"] = zero.clone()
         loss_out["num_cls"] = 0
         loss_out["reg_loss"] = zero.clone()
@@ -759,7 +764,9 @@ class PredLoss(nn.Module):
         num_mods, num_preds = self.config["num_mods"], self.config["num_preds"]
         # assert(has_preds.all())
 
-        last = has_preds.float() + 0.1 * torch.arange(num_preds).float().to(has_preds.device) / float(num_preds)
+        last = has_preds.float() + 0.1 * torch.arange(num_preds).float().to(
+            has_preds.device
+        ) / float(num_preds)
         max_last, last_idcs = last.max(1)
         mask = max_last > 1.0
 
@@ -796,9 +803,10 @@ class PredLoss(nn.Module):
         loss_out["num_cls"] += mask.sum().item()
 
         reg = reg[row_idcs, min_idcs]
-
         coef = self.config["reg_coef"]
-        loss_out["reg_loss"] += coef * self.reg_loss(reg[has_preds], gt_preds[has_preds])
+        loss_out["reg_loss"] += coef * self.reg_loss(
+            reg[has_preds], gt_preds[has_preds]
+        )
         loss_out["num_reg"] += has_preds.sum().item()
 
         coef = self.config["goal_coef"]
@@ -806,7 +814,7 @@ class PredLoss(nn.Module):
         goal_idcs = last_idcs[mask_goal]
         reg_goal = reg[mask_goal]
         gt_preds_goal = gt_preds[mask_goal]
-        goal_row_idcs = torch.arange(len(goal_idcs)).long().to(goal_idcs.device)
+        goal_row_idcs = torch.arange(len(goal_idcs)).long().to(goal_idcs.device)            
         v1 = reg_goal[goal_row_idcs, goal_idcs]
         v2 = gt_preds_goal[goal_row_idcs, goal_idcs]
         loss_out["goal_loss"] += coef * self.goal_loss(v1, v2)
@@ -824,8 +832,7 @@ class Loss(nn.Module):
         loss_out = self.pred_loss(out, gpu(data["gt_preds"]), gpu(data["has_preds"]))
         loss_out["loss"] = loss_out["cls_loss"] / (
             loss_out["num_cls"] + 1e-10
-        ) + loss_out["reg_loss"] / (loss_out["num_reg"] + 1e-10)
-        + loss_out["goal_loss"] / (loss_out["num_goal"] + 1e-10)
+        ) + loss_out["reg_loss"] / (loss_out["num_reg"] + 1e-10) + loss_out["goal_loss"] / (loss_out["num_goal"] + 1e-10)
         return loss_out
 
 
