@@ -1,3 +1,3 @@
 # SSL-Lanes
 
-Checkpoint: https://drive.google.com/file/d/1l1ckA8QUelbFuZz4WHyKcawhLTJ-yzA9/view?usp=sharing
+Checkpoint: https://drive.google.com/drive/folders/1M2Ruji_dd0SH2aJ4_XyjH4guYivqzCa2?usp=sharing
