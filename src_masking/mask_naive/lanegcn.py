@@ -788,6 +788,7 @@ class PredLoss(nn.Module):
         super(PredLoss, self).__init__()
         self.config = config
         self.reg_loss = nn.SmoothL1Loss(reduction="sum")
+        self.goal_loss = nn.SmoothL1Loss(reduction='sum')
 
     def forward(self, out: Dict[str, List[Tensor]], gt_preds: List[Tensor], has_preds: List[Tensor]) -> Dict[str, Union[Tensor, int]]:
         cls, reg = out["cls"], out["reg"]
@@ -802,6 +803,8 @@ class PredLoss(nn.Module):
         loss_out["num_cls"] = 0
         loss_out["reg_loss"] = zero.clone()
         loss_out["num_reg"] = 0
+        loss_out["goal_loss"] = zero.clone()
+        loss_out["num_goal"] = 0
 
         num_mods, num_preds = self.config["num_mods"], self.config["num_preds"]
         # assert(has_preds.all())
@@ -850,6 +853,18 @@ class PredLoss(nn.Module):
             reg[has_preds], gt_preds[has_preds]
         )
         loss_out["num_reg"] += has_preds.sum().item()
+        
+        coef = self.config["goal_coef"]
+        mask_goal = last_idcs > 15
+        goal_idcs = last_idcs[mask_goal]
+        reg_goal = reg[mask_goal]
+        gt_preds_goal = gt_preds[mask_goal]
+        goal_row_idcs = torch.arange(len(goal_idcs)).long().to(goal_idcs.device)
+        v1 = reg_goal[goal_row_idcs, goal_idcs]
+        v2 = gt_preds_goal[goal_row_idcs, goal_idcs]
+        loss_out["goal_loss"] += coef * self.goal_loss(v1, v2)
+        loss_out["num_goal"] += mask_goal.sum().item()
+
         return loss_out
 
 
