@@ -82,10 +82,12 @@ config["num_preds"] = config["pred_size"] // config["pred_step"]
 config["num_mods"] = 6
 config["cls_coef"] = 1.0
 config["reg_coef"] = 1.0
+config["goal_coef"] = 1.0
 config["mgn"] = 0.2
 config["cls_th"] = 2.0
 config["cls_ignore"] = 0.2
 ### end of config ###
+
 
 class AttributeMask():
     def __init__(self, nhid=128, device='cuda'):
@@ -97,33 +99,48 @@ class AttributeMask():
         self.masked_indicator = torch.zeros(self.nfeat).to(device)
         self.masked_nodes = None
 
-        self.linear = nn.Linear(nhid, self.nfeat).to(device)
+        self.linear1 = nn.Linear(nhid, self.nfeat).to(device)
+        self.linear2 = nn.Linear(nhid, self.nfeat).to(device)
 
-    def reset(self, node_idcs, graph_feats):
-        self.feats = graph_feats.to(self.device)
+    def reset(self, node_idcs, graph_feats, graph_ctrs, actor_ctrs):
+        self.feats = graph_feats.clone().to(self.device)
+        self.ctrs = torch.cat(graph_ctrs, 0).clone().to(self.device)
+        self.actors_ctrs = torch.cat(actor_ctrs, 0).clone().to(self.device)
         self.node_idcs = node_idcs
 
     def transform_data(self, mask_ratio=0.3):
-        self.cached_feats = self.feats.clone()
+        self.cached_feats = self.feats
+        self.cached_ctrs = self.ctrs
+        self.cached_actors = self.actors_ctrs
 
         masked_nodes = []
         pseudo_labels_feats = []
+        pseudo_labels_ctrs = []
 
         for i in range(len(self.node_idcs)):
             nnodes = self.node_idcs[i].cpu().numpy().copy()
+
             perm = np.random.permutation(nnodes)
             masked_node = perm[: int(len(perm) * (mask_ratio))]
             masked_nodes.append(masked_node)
+           
             self.cached_feats[masked_node] = self.masked_indicator
+            self.cached_ctrs[masked_node] = self.masked_indicator
             pseudo_labels_feats.append(self.feats[masked_node])
+            pseudo_labels_ctrs.append(self.ctrs[masked_node])
 
         self.masked_nodes = list(np.concatenate(masked_nodes))
         self.pseudo_labels_feats = torch.cat(pseudo_labels_feats, 0)
-        return self.cached_feats
+        self.pseudo_labels_ctrs = torch.cat(pseudo_labels_ctrs, 0)
+       
+        return self.cached_feats, self.cached_ctrs
 
     def make_loss(self, embeddings):
-        masked_embeddings_feats = (self.linear(embeddings[self.masked_nodes]))
-        loss = F.mse_loss(masked_embeddings_feats, self.pseudo_labels_feats, reduction='mean')
+        masked_embeddings_feats = (self.linear1(embeddings[self.masked_nodes]))
+        masked_embeddings_ctrs = (self.linear2(embeddings[self.masked_nodes]))
+        num_total = len(self.masked_nodes)
+        loss =  0.7 * (F.mse_loss(masked_embeddings_feats, self.pseudo_labels_feats, reduction='sum')/(num_total+1e-10)) + \
+               0.3 * (F.mse_loss(masked_embeddings_ctrs, self.pseudo_labels_ctrs, reduction='sum')/(num_total+1e-10)) 
         return loss
 
 
@@ -153,8 +170,6 @@ class Net(nn.Module):
         self.actor_net = ActorNet(config)
         self.map_net = MapNet(config)
 
-        #self.a2m = A2M(config)
-        #self.m2m = M2M(config)
         self.m2a = M2A(config)
         self.a2a = A2A(config)
 
@@ -172,16 +187,16 @@ class Net(nn.Module):
         # construct map features
         graph = graph_gather(to_long(gpu(data["graph"])))
         if train:
-            #--------------new!
-            self.ssl_agent.reset(graph['idcs'], graph['feats'])
-            graph['feats'] = self.ssl_agent.transform_data()
             # --------------new!
+            self.ssl_agent.reset(graph['idcs'], graph['feats'], graph['ctrs'], actor_ctrs)
+            graph['feats'], graph['ctrs_ssl'] = self.ssl_agent.transform_data()
+            # --------------new!
+        else:
+            graph['ctrs_ssl'] = torch.cat(graph["ctrs"], 0)
         nodes, node_idcs, node_ctrs = self.map_net(graph)
         node_embeddings = nodes.clone()
         
-        # actor-map fusion cycle 
-        #nodes = self.a2m(nodes, graph, actors, actor_idcs, actor_ctrs)
-        #nodes = self.m2m(nodes, graph)
+        # actor-map fusion
         actors = self.m2a(actors, actor_idcs, actor_ctrs, nodes, node_idcs, node_ctrs)
         actors = self.a2a(actors, actor_idcs, actor_ctrs)
 
@@ -366,7 +381,7 @@ class MapNet(nn.Module):
                 temp.new().resize_(0),
             )
 
-        ctrs = torch.cat(graph["ctrs"], 0)
+        ctrs = graph["ctrs_ssl"]  #torch.cat(graph["ctrs"], 0)
         feat = self.input(ctrs)
         feat += self.seg(graph["feats"])
         feat = self.relu(feat)
@@ -961,8 +976,8 @@ def pred_metrics(preds, gt_preds, has_preds):
     ade = err.mean()
     fde = err[:, -1].mean()
 
-    import scipy.stats as st
-    print(st.t.interval(0.95, len(err)-1, loc=np.mean(err), scale=st.sem(err)))
+    #import scipy.stats as st
+    #print(st.t.interval(0.95, len(err)-1, loc=np.mean(err), scale=st.sem(err)))
 
     return ade1, fde1, ade, fde, min_idcs
 

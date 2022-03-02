@@ -82,6 +82,7 @@ config["num_preds"] = config["pred_size"] // config["pred_step"]
 config["num_mods"] = 6
 config["cls_coef"] = 1.0
 config["reg_coef"] = 1.0
+config["goal_coef"] = 1.0
 config["mgn"] = 0.2
 config["cls_th"] = 2.0
 config["cls_ignore"] = 0.2
