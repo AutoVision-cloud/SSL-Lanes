@@ -33,9 +33,9 @@ config["save_freq"] = 1.0
 config["epoch"] = 0
 config["horovod"] = True
 config["opt"] = "adam"
-config["num_epochs"] = 60  #52 #36
+config["num_epochs"] = 60  #36
 config["lr"] = [1e-3, 1e-4]
-config["lr_epochs"] = [45]  #[40] #[32]
+config["lr_epochs"] = [45] #[32]
 config["lr_func"] = StepLR(config["lr"], config["lr_epochs"])
 
 
@@ -102,11 +102,12 @@ class AttributeMask():
         self.linear1 = nn.Linear(nhid, self.nfeat).to(device)
         self.linear2 = nn.Linear(nhid, self.nfeat).to(device)
 
-    def reset(self, node_idcs, graph_feats, graph_ctrs, actor_ctrs):
+    def reset(self, node_idcs, lane_idcs, graph_feats, graph_ctrs, actor_ctrs):
         self.feats = graph_feats.clone().to(self.device)
         self.ctrs = torch.cat(graph_ctrs, 0).clone().to(self.device)
         self.actors_ctrs = torch.cat(actor_ctrs, 0).clone().to(self.device)
         self.node_idcs = node_idcs
+        self.lane_idcs = lane_idcs
 
     def transform_data(self, epoch, mask_ratio=0.4):
         self.cached_feats = self.feats
@@ -118,12 +119,23 @@ class AttributeMask():
         pseudo_labels_ctrs = []
 
         for i in range(len(self.node_idcs)):
-            nnodes = self.node_idcs[i].cpu().numpy().copy()
+            masked_node_arr = np.array([])
+            unique_lanes = torch.unique(self.lane_idcs[i]).shape[0]
+            lane_ids = self.lane_idcs[i].cpu().numpy()
+            for j in range(unique_lanes):
+                lane_node_corresp = np.where(lane_ids == j)[0]
+                start_lane = lane_node_corresp[0]
+                end_lane = lane_node_corresp[-1]
+                mask_len_lane = int(len(lane_node_corresp) * (mask_ratio))
+                if mask_len_lane > 1:
+                    masked_node_arr = np.concatenate([masked_node_arr, np.random.randint(start_lane, end_lane, mask_len_lane)])
+                else:
+                    continue
 
-	    perm = np.random.permutation(nnodes)
-	    masked_node = perm[: int(len(perm) * (mask_ratio))]
-	    masked_nodes.append(masked_node)
-   
+            perm = np.random.permutation(masked_node_arr)
+            masked_node = perm
+            masked_nodes.append(masked_node)
+
             self.cached_feats[masked_node] = self.masked_indicator
             self.cached_ctrs[masked_node] = self.masked_indicator
             pseudo_labels_feats.append(self.feats[masked_node])
@@ -170,8 +182,6 @@ class Net(nn.Module):
         self.actor_net = ActorNet(config)
         self.map_net = MapNet(config)
 
-        #self.a2m = A2M(config)
-        #self.m2m = M2M(config)
         self.m2a = M2A(config)
         self.a2a = A2A(config)
 
@@ -190,7 +200,7 @@ class Net(nn.Module):
         graph = graph_gather(to_long(gpu(data["graph"])))
         if train:
             #--------------new!
-            self.ssl_agent.reset(graph['idcs'], graph['feats'], graph['ctrs'], actor_ctrs)
+            self.ssl_agent.reset(graph['idcs'], graph['lane_idcs'], graph['feats'], graph['ctrs'], actor_ctrs)
             graph['feats'], graph['ctrs_ssl'] = self.ssl_agent.transform_data(epoch)
             # --------------new!
         else:
@@ -198,9 +208,7 @@ class Net(nn.Module):
         nodes, node_idcs, node_ctrs = self.map_net(graph)
         node_embeddings = nodes.clone()
         
-        # actor-map fusion cycle 
-        #nodes = self.a2m(nodes, graph, actors, actor_idcs, actor_ctrs)
-        #nodes = self.m2m(nodes, graph)
+        # actor-map fusion
         actors = self.m2a(actors, actor_idcs, actor_ctrs, nodes, node_idcs, node_ctrs)
         actors = self.a2a(actors, actor_idcs, actor_ctrs)
 
@@ -247,6 +255,9 @@ def graph_gather(graphs):
 
     graph = dict()
     graph["idcs"] = node_idcs
+    #--------new!--------------------
+    graph["lane_idcs"] = [x["lane_idcs"] for x in graphs]
+    #--------new!--------------------
     graph["ctrs"] = [x["ctrs"] for x in graphs]
 
     for key in ["feats", "turn", "control", "intersect"]:
@@ -425,124 +436,6 @@ class MapNet(nn.Module):
             feat = self.relu(feat)
             res = feat
         return feat, graph["idcs"], graph["ctrs"]
-
-
-class A2M(nn.Module):
-    """
-    Actor to Map Fusion:  fuses real-time traffic information from
-    actor nodes to lane nodes
-    """
-    def __init__(self, config):
-        super(A2M, self).__init__()
-        self.config = config
-        n_map = config["n_map"]
-        norm = "GN"
-        ng = 1
-
-        """fuse meta, static, dyn"""
-        self.meta = Linear(n_map + 4, n_map, norm=norm, ng=ng)
-        att = []
-        for i in range(2):
-            att.append(Att(n_map, config["n_actor"]))
-        self.att = nn.ModuleList(att)
-
-    def forward(self, feat: Tensor, graph: Dict[str, Union[List[Tensor], Tensor, List[Dict[str, Tensor]], Dict[str, Tensor]]], actors: Tensor, actor_idcs: List[Tensor], actor_ctrs: List[Tensor]) -> Tensor:
-        """meta, static and dyn fuse using attention"""
-        meta = torch.cat(
-            (
-                graph["turn"],
-                graph["control"].unsqueeze(1),
-                graph["intersect"].unsqueeze(1),
-            ),
-            1,
-        )
-        
-        feat = self.meta(torch.cat((feat, meta), 1))
-        
-        for i in range(len(self.att)):
-            feat = self.att[i](
-                feat,
-                graph["idcs"],
-                graph["ctrs"],
-                actors,
-                actor_idcs,
-                actor_ctrs,
-                self.config["actor2map_dist"],
-            )
-        return feat
-
-
-class M2M(nn.Module):
-    """
-    The lane to lane block: propagates information over lane
-            graphs and updates the features of lane nodes
-    """
-    def __init__(self, config):
-        super(M2M, self).__init__()
-        self.config = config
-        n_map = config["n_map"]
-        norm = "GN"
-        ng = 1
-
-        keys = ["ctr", "norm", "ctr2", "left", "right"]
-        for i in range(config["num_scales"]):
-            keys.append("pre" + str(i))
-            keys.append("suc" + str(i))
-
-        fuse = dict()
-        for key in keys:
-            fuse[key] = []
-
-        for i in range(4):
-            for key in fuse:
-                if key in ["norm"]:
-                    fuse[key].append(nn.GroupNorm(gcd(ng, n_map), n_map))
-                elif key in ["ctr2"]:
-                    fuse[key].append(Linear(n_map, n_map, norm=norm, ng=ng, act=False))
-                else:
-                    fuse[key].append(nn.Linear(n_map, n_map, bias=False))
-
-        for key in fuse:
-            fuse[key] = nn.ModuleList(fuse[key])
-        self.fuse = nn.ModuleDict(fuse)
-        self.relu = nn.ReLU(inplace=True)
-
-    def forward(self, feat: Tensor, graph: Dict) -> Tensor:
-        """fuse map"""
-        res = feat
-        for i in range(len(self.fuse["ctr"])):
-            temp = self.fuse["ctr"][i](feat)
-            for key in self.fuse:
-                if key.startswith("pre") or key.startswith("suc"):
-                    k1 = key[:3]
-                    k2 = int(key[3:])
-                    temp.index_add_(
-                        0,
-                        graph[k1][k2]["u"],
-                        self.fuse[key][i](feat[graph[k1][k2]["v"]]),
-                    )
-
-            if len(graph["left"]["u"] > 0):
-                temp.index_add_(
-                    0,
-                    graph["left"]["u"],
-                    self.fuse["left"][i](feat[graph["left"]["v"]]),
-                )
-            if len(graph["right"]["u"] > 0):
-                temp.index_add_(
-                    0,
-                    graph["right"]["u"],
-                    self.fuse["right"][i](feat[graph["right"]["v"]]),
-                )
-
-            feat = self.fuse["norm"][i](temp)
-            feat = self.relu(feat)
-
-            feat = self.fuse["ctr2"][i](feat)
-            feat += res
-            feat = self.relu(feat)
-            res = feat
-        return feat
 
 
 class M2A(nn.Module):
@@ -974,15 +867,12 @@ def pred_metrics(preds, gt_preds, has_preds):
     ade1 = err[:, 0].mean()
     fde1 = err[:, 0, -1].mean()
 
-    #import scipy.stats as st    
-
     min_idcs = err[:, :, -1].argmin(1)
     row_idcs = np.arange(len(min_idcs)).astype(np.int64)
     err = err[row_idcs, min_idcs]
     ade = err.mean()
     fde = err[:, -1].mean()
 
-    #print(st.t.interval(0.95, len(err)-1, loc=np.mean(err), scale=st.sem(err)))
     return ade1, fde1, ade, fde, min_idcs
 
 
