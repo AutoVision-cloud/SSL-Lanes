@@ -119,7 +119,7 @@ class AttributeMask():
         pseudo_labels_ctrs = []
 
         for i in range(len(self.node_idcs)):
-            if epoch % 2 == 0:
+            if epoch > 25:
                 masked_node_arr = np.array([])
                 unique_lanes = torch.unique(self.lane_idcs[i]).shape[0]
                 lane_ids = self.lane_idcs[i].cpu().numpy()
