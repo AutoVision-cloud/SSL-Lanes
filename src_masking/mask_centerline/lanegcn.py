@@ -1,4 +1,4 @@
-# Copyright (c) 2020 Uber Technologies, Inc.
+#Copyright (c) 2020 Uber Technologies, Inc.
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
@@ -33,9 +33,9 @@ config["save_freq"] = 1.0
 config["epoch"] = 0
 config["horovod"] = True
 config["opt"] = "adam"
-config["num_epochs"] = 60  #36
+config["num_epochs"] = 80  
 config["lr"] = [1e-3, 1e-4]
-config["lr_epochs"] = [45] #[32]
+config["lr_epochs"] = [62]  #[45] #[32]
 config["lr_func"] = StepLR(config["lr"], config["lr_epochs"])
 
 
@@ -118,6 +118,7 @@ class AttributeMask():
         pseudo_labels_feats = []
         pseudo_labels_ctrs = []
 
+        start_idx = 0
         for i in range(len(self.node_idcs)):
             masked_node_arr = np.array([])
             unique_lanes = torch.unique(self.lane_idcs[i]).shape[0]
@@ -132,6 +133,7 @@ class AttributeMask():
                 else:
                     continue
 
+            masked_node_arr += start_idx
             perm = np.random.permutation(masked_node_arr)
             masked_node = perm
             masked_nodes.append(masked_node)
@@ -140,6 +142,8 @@ class AttributeMask():
             self.cached_ctrs[masked_node] = self.masked_indicator
             pseudo_labels_feats.append(self.feats[masked_node])
             pseudo_labels_ctrs.append(self.ctrs[masked_node])
+
+            start_idx += len(self.node_idcs[i])
 
         self.masked_nodes = list(np.concatenate(masked_nodes))
         self.pseudo_labels_feats = torch.cat(pseudo_labels_feats, 0)
