@@ -99,8 +99,9 @@ def write_file():
             selected_nodes, dis_matrix = get_intersection_task(data_sample)
             x[i]['selected_nodes'] = selected_nodes
             x[i]['dis_matrix'] = dis_matrix
-        
+                
         pickle.dump(x, f)
+        op = 'n'
  
     f.close()
  
