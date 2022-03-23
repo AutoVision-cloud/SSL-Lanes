@@ -101,6 +101,7 @@ def write_file():
             x[i]['dis_matrix'] = dis_matrix
         
         pickle.dump(x, f)
+        op = 'n'
  
     f.close()
  
