@@ -69,23 +69,16 @@ class ArgoDataset(Dataset):
                 data = new_data
             else:
                 new_data = dict()
-                for key in ['city', 'orig', 'gt_preds', 'has_preds', 'theta', 'rot', 'feats', 'ctrs', 'graph']:
-                    if key in data:
-                        new_data[key] = ref_copy(data[key])
-                data = new_data
-                # ----------------new, get intention---------------------
-                traj = data['gt_preds'][0][:np.where(data['has_preds'][0])[0][-1]]
-                traj_norm = np.matmul(data['rot'], (traj - data['orig'].reshape(-1, 2)).T).T
-                city = data['city']
-                orig = data['orig']
-                final = data['gt_preds'][0][np.where(data['has_preds'][0])[0][-1]]
-                deg = np.rad2deg(np.arctan2(traj_norm[-1][-1], traj_norm[-1][0]))
-                if abs(deg) > 90:
-                    traj_norm[:, 0] = - traj_norm[:, 0]
-                    traj_norm[:, 1] = - traj_norm[:, 1]
-                intention_cls = self.get_intention(traj_norm, city, orig, final)
-                data['intention_cls'] = intention_cls
-                # ----------------new, get intention---------------------
+                if self.train:
+                    for key in ['city', 'orig', 'gt_preds', 'has_preds', 'theta', 'rot', 'feats', 'ctrs', 'graph', 'intention_cls']:
+                        if key in data:
+                            new_data[key] = ref_copy(data[key])
+                    data = new_data
+                else:
+                    for key in ['city', 'orig', 'gt_preds', 'has_preds', 'theta', 'rot', 'feats', 'ctrs', 'graph']:
+                        if key in data:
+                            new_data[key] = ref_copy(data[key])
+                    data = new_data
 
             if 'raster' in self.config and self.config['raster']:
                 data.pop('graph')
@@ -114,72 +107,6 @@ class ArgoDataset(Dataset):
 
         data['graph'] = self.get_lane_graph(data)
         return data
-    
-    def get_confidence_flag(self, city, orig, final):
-        flag_confidence = 1
-        lane_dir1 = self.am.get_lane_direction(query_xy_city_coords=orig, city_name=city, visualize=False)
-        lane_dir2 = self.am.get_lane_direction(query_xy_city_coords=final, city_name=city, visualize=False)
-        if lane_dir1[-1] < 0.8 or lane_dir2[-1] < 0.8:
-            flag_confidence = -1
-        return flag_confidence
-
-    def get_lane_turn_flag(self, city, orig, final):
-        lane_turn_flag = 1
-
-        lane_turn_orig = self.am.get_lane_turn_direction(self.am.get_nearest_centerline(orig, city)[0].id, city)
-        lane_turn_final = self.am.get_lane_turn_direction(self.am.get_nearest_centerline(final, city)[0].id, city)
-
-        if lane_turn_final != 'NONE' or lane_turn_orig != 'NONE':
-            lane_turn_flag = -1
-        return lane_turn_flag
-
-    def get_lane_curve_flag(self, city, orig, final):
-        lane_curv_flag = 1
-
-        a = self.am.get_nearest_centerline(orig, city)[0].centerline
-        dir_lane = a[-1] - a[0]
-        lane_curv_orig = np.arctan2(dir_lane[-1], dir_lane[0])
-
-        b = self.am.get_nearest_centerline(final, city)[0].centerline
-        dir_lane = b[-1] - b[0]
-        lane_curv_final = np.arctan2(dir_lane[-1], dir_lane[0])
-
-        if lane_curv_final * lane_curv_orig < 0:
-            lane_curv_flag = -1
-        else:
-            if abs(lane_curv_final - lane_curv_orig) > 0.1:
-                lane_curv_flag = -1
-        return lane_curv_flag
-
-    def get_intention(self, traj_norm, city, orig, final):
-        tmp_idx = -1
-        tmp_dist = 1000
-
-        for i in range(5):
-            dist = scipy.spatial.distance.cosine(cluster_centers[i], traj_norm[-1])
-            if dist < tmp_dist:
-                tmp_idx = i
-                tmp_dist = dist
-
-        idx_sel = -1
-        dist_sel = 1000
-
-        if tmp_idx < 3:
-            if self.get_confidence_flag(city, orig, final) == -1 and self.get_lane_turn_flag(city, orig, final) == 1:
-                idx_sel = 5
-            else:
-                for i in range(3):
-                    dist1 = np.linalg.norm(cluster_centers[i] - traj_norm[-1])
-                    if dist1 < dist_sel:
-                        idx_sel = i
-                        dist_sel = dist1
-        else:
-            for i in range(3, 5):
-                dist1 = np.linalg.norm(cluster_centers[i] - traj_norm[-1])
-                if dist1 < dist_sel:
-                    idx_sel = i
-                    dist_sel = dist1
-        return idx_sel
 
     def __len__(self):
         if 'preprocess' in self.config and self.config['preprocess']:

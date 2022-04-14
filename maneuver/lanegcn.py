@@ -38,9 +38,9 @@ config["save_freq"] = 1.0
 config["epoch"] = 0
 config["horovod"] = True
 config["opt"] = "adam"
-config["num_epochs"] = 40
+config["num_epochs"] = 60
 config["lr"] = [1e-3, 1e-4]
-config["lr_epochs"] = [35]
+config["lr_epochs"] = [45]
 config["lr_func"] = StepLR(config["lr"], config["lr_epochs"])
 
 
@@ -66,7 +66,7 @@ config["test_split"] = os.path.join(root_path, "dataset/test_obs/data")
 
 # Preprocessed Dataset
 config["preprocess"] = True # whether use preprocess or not
-config["preprocess_train"] = os.path.join(root_path, "dataset", "preprocess", "train.p") #"train_crs_dist6_angle90.p")
+config["preprocess_train"] = os.path.join(root_path, "dataset", "preprocess", "train_intention.p") #"train_crs_dist6_angle90.p")
 config["preprocess_val"] = os.path.join(
     root_path,"dataset", "preprocess", "val_crs_dist6_angle90.p"
 )
@@ -78,8 +78,8 @@ config["pred_range"] = [-100.0, 100.0, -100.0, 100.0]
 config["num_scales"] = 6
 config["n_actor"] = 128
 config["n_map"] = 128
-config["actor2map_dist"] = 8.0
-config["map2actor_dist"] = 15.0 
+config["actor2map_dist"] = 7.0
+config["map2actor_dist"] = 12.0 
 config["actor2actor_dist"] = 100.0
 config["pred_size"] = 30
 config["pred_step"] = 1
@@ -117,7 +117,7 @@ class IntentionTask:
         embeddings_feats = self.linear1(embeddings[self.selected_ids])
         output = F.log_softmax(embeddings_feats, dim=1)
         num_total = self.selected_ids.shape[0]
-        loss = F.nll_loss(output, self.pseudo_labels_feats, reduction='mean') #sum') / (num_total + 1e-10)
+        loss = F.nll_loss(output, self.pseudo_labels_feats, reduction='sum') / (num_total + 1e-10)
         return loss
 
 
@@ -333,7 +333,7 @@ class MapNet(nn.Module):
         for key in keys:
             fuse[key] = []
 
-        for i in range(2): #4):
+        for i in range(2): 
             for key in fuse:
                 if key in ["norm"]:
                     fuse[key].append(nn.GroupNorm(gcd(ng, n_map), n_map))
