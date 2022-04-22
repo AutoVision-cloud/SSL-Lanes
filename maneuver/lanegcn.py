@@ -117,7 +117,8 @@ class IntentionTask:
         embeddings_feats = self.linear1(embeddings[self.selected_ids])
         output = F.log_softmax(embeddings_feats, dim=1)
         num_total = self.selected_ids.shape[0]
-        loss = F.nll_loss(output, self.pseudo_labels_feats, reduction='sum') / (num_total + 1e-10)
+        cls_weight = torch.tensor([0.124, 0.347, 0.250, 0.076, 0.113, 0.090]).to(self.device)
+        loss = F.nll_loss(input=output, target=self.pseudo_labels_feats, weight=cls_weight, reduction='sum') / (num_total + 1e-10)
         return loss
 
 
