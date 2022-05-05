@@ -1,0 +1,6 @@
+[submodule "baseline/LaneGCN"]
+	path = baseline/LaneGCN
+	url = https://github.com/uber-research/LaneGCN
+[submodule "baseline/argoverse-api"]
+	path = baseline/argoverse-api
+	url = https://github.com/argoai/argoverse-api
