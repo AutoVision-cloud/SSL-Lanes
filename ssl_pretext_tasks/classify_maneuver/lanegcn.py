@@ -7,7 +7,7 @@ import os
 import sys
 from fractions import gcd
 from numbers import Number
-
+ 
 import collections
 import random
 from functools import reduce
