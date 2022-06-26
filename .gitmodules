@@ -6,8 +6,8 @@
 	url = https://github.com/argoai/argoverse-api
 
 [submodule "SSL_pretext_tasks/LaneGCN"]
-	path = SSL_pretext_tasks/LaneGCN
+	path = ssl_pretext_tasks/LaneGCN
 	url = https://github.com/uber-research/LaneGCN
 [submodule "SSL_pretext_tasks/argoverse-api"]
-	path = SSL_pretext_tasks/argoverse-api
+	path = ssl_pretext_tasks/argoverse-api
 	url = https://github.com/argoai/argoverse-api
