@@ -35,7 +35,7 @@ config["horovod"] = True
 config["opt"] = "adam"
 config["num_epochs"] = 80  
 config["lr"] = [1e-3, 1e-4]
-config["lr_epochs"] = [62]  #[45] #[32]
+config["lr_epochs"] = [62]  
 config["lr_func"] = StepLR(config["lr"], config["lr_epochs"])
 
 
