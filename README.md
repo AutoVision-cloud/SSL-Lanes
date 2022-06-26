@@ -25,3 +25,24 @@ For this repository, the expected performance on Argoverse 1 validation set is:
 
 ### Qualitative Results
 ![](assets/teaser.png)
+
+## Pretrained Models
+
+We provide the pretrained checkpoints for the proposed above-mentioned models in [checkpoints/](https://drive.google.com/drive/folders/1zSznQ0Jzi2fzxLX7xeQpUJppezU7J1v3?usp=sharing). 
+
+## Citation
+If you find this project useful in your research, please consider starring the repository and citing:
+```bibtex
+@misc{bhattacharyya2022ssllanes,
+      title={SSL-Lanes: Self-Supervised Learning for Motion Forecasting in Autonomous Driving}, 
+      author={Prarthana Bhattacharyya, Chengjie Huang and Krzysztof Czarnecki},
+      year={2022},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV}
+}
+```
+
+## Acknowledgement
+* [LaneGCN](https://github.com/uber-research/LaneGCN)
+* [SelfTask-GNN](https://github.com/ChandlerBang/SelfTask-GNN)
+
