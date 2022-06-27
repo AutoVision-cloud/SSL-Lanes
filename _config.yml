@@ -1,5 +1,13 @@
 theme: jekyll-theme-cayman
+
 titles_from_headings:
   enabled:     true
   strip_title: true
   collections: true
+
+defaults:
+  - scope:
+      path: some-path
+      layout: some_layout
+    values:
+      strip_title: true
