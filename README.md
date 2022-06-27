@@ -51,4 +51,4 @@ If you find this project useful in your research, please consider starring the r
 ## Acknowledgement
 * [LaneGCN](https://github.com/uber-research/LaneGCN)
 * [SelfTask-GNN](https://github.com/ChandlerBang/SelfTask-GNN)
-
+* [SS-GCN](https://github.com/Shen-Lab/SS-GCNs)
