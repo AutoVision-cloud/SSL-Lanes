@@ -30,6 +30,12 @@ For this repository, the expected performance on Argoverse 1 validation set is:
 
 We provide the pretrained checkpoints for the proposed above-mentioned models in [checkpoints/](https://drive.google.com/drive/folders/1zSznQ0Jzi2fzxLX7xeQpUJppezU7J1v3?usp=sharing). 
 
+### Inference validation set for metrics
+To evaluate the prediction performance, run:
+```
+python test.py -m lanegcn --weight=lane_masking.ckpt --split=val
+```
+
 ## Citation
 If you find this project useful in your research, please consider starring the repository and citing:
 ```bibtex
