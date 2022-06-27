@@ -1,3 +1,5 @@
 theme: jekyll-theme-cayman
-name: ""
-title: null
+titles_from_headings:
+  enabled:     true
+  strip_title: true
+  collections: true
