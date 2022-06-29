@@ -1,7 +1,7 @@
 # SSL-Lanes: Self-Supervised Learning for Motion Forecasting in Autonomous Driving
 By [Prarthana Bhattacharyya](https://scholar.google.com/citations?user=v6pGkNQAAAAJ&hl=en), [Chengjie Huang](https://scholar.google.com/citations?user=O6gvGZgAAAAJ&hl=en) and [Krzysztof Czarnecki](https://scholar.google.com/citations?hl=en&user=ZzCpumQAAAAJ).
 
-We provide code support and configuration files to reproduce the results in the paper: [SSL-Lanes: Self-Supervised Learning for Motion Forecasting in Autonomous Driving](https://arxiv.org/abs/2206.14116).
+We provide code support for the paper: [SSL-Lanes: Self-Supervised Learning for Motion Forecasting in Autonomous Driving](https://arxiv.org/abs/2206.14116).
 <br/> Our code is based on [Lane-GCN](https://github.com/uber-research/LaneGCN), which is a clean open-sourced project for motion forecasting methods. 
 
 ## Overview
